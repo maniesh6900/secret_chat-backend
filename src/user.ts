@@ -1,5 +1,14 @@
+// import dotenv from "dotenv"
+// dotenv.config()
 import type WebSocket from "ws";
 import { Manager } from "./manager.js";
+
+import { redis, SUB } from "./redisConnection.js";
+  
+const joinChannel = process.env.JOINS as string;
+const msgChannel = process.env.MSG as string;
+const leftChannel  =  process.env.LEFT as string;
+
 
 export class user {
   private ws: WebSocket;
@@ -35,10 +44,9 @@ export class user {
     this.key = "";
   }
 
-  initHandler() {
+initHandler() {
     this.ws.on("message", async (data) => {
       const msg = JSON.parse(data.toString());
-
       switch (msg.type) {
         case "join": {
           const nextKey = typeof msg.key === "string" ? msg.key.trim().toLowerCase() : "";
@@ -55,7 +63,6 @@ export class user {
           if (this.roomid && this.key) {
             this.leaveRoom();
           }
-
           this.key = nextKey;
           this.roomid = nextRoom;
 
@@ -82,16 +89,38 @@ export class user {
             this,
             this.roomid,
           );
+         
+          await redis.publish(joinChannel, JSON.stringify({key: this.key, roomid : this.roomid}))
 
-          this.send({
-            type: "joined",
-            key: this.key,
-            roomid: this.roomid,
-            users: Manager.getIntance().getRoomUsers(this.roomid),
-          });
+          await SUB.subscribe(joinChannel, (err, count)=> {
+            if(err) return console.error(err);
+          })
+          SUB.on("message", (joinChannel, message)=> {
+            const  parsedData = JSON.parse(message.toString());
+            
+            if(this.roomid == parsedData.roomid) {
+              this.send({
+                type: "joined",
+                key: parsedData.key,
+                roomid: parsedData.roomid,
+                users: Manager.getIntance().getRoomUsers(this.roomid),
+              });
+              Manager.getIntance().addUsertoRoom(this.roomid, parsedData)
+              Manager.getIntance().broadcast(
+            {
+              type: "joined_user",
+              key: this.key,
+              text: `${this.key} joined the room.`,
+              users: Manager.getIntance().getRoomUsers(this.roomid),
+            },
+            this,
+            this.roomid,
+          );
+            }
+            
+          })
           break;
         }
-
         case "msg": {
           if (!this.roomid || !this.key) {
             this.send({
@@ -100,6 +129,30 @@ export class user {
             });
             break;
           }
+
+
+          await redis.publish(msgChannel, JSON.stringify({
+              type: "msg",
+              text: msg.text,
+              key: this.key,
+              user : this, 
+              roomid : this.roomid,
+            }
+          ))
+
+          await SUB.subscribe(msgChannel, (err, count)=> {
+           if(err) return console.error(err);
+          })
+          SUB.on("message",(msgChannel, message) => {
+            const parsedData_msg = JSON.parse(message);
+            // console.log(parsedData_msg );
+            
+          } )
+          this.send({
+            type: "msg",
+            text: msg.text,
+            key: this.key,
+          });
 
           Manager.getIntance().broadcast(
             {
@@ -111,16 +164,16 @@ export class user {
             this.roomid,
           );
 
-          this.send({
-            type: "msg",
-            text: msg.text,
-            key: this.key,
-          });
           break;
         }
 
         case "left":
           this.leaveRoom();
+          // redis.publish(process.env.LEFT as string, JSON.stringify({
+          //   type: "User-LEFT-redis",
+          //   key: this.key,
+          //   roomid: this.roomid,
+          // }))
           break;
       }
     });
@@ -130,7 +183,8 @@ export class user {
     this.ws.send(JSON.stringify(message));
   }
 
-  public destroy() {
+  public async destroy() {
     this.leaveRoom();
+    await redis.srem('room', JSON.stringify({key: this.key, roomid: this.roomid}));
   }
 }

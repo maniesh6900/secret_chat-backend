@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/manager.ts","./src/user.ts"],"version":"5.9.3"}
+{"root":["./src/index.ts","./src/manager.ts","./src/redisconnection.ts","./src/user.ts"],"version":"5.9.3"}

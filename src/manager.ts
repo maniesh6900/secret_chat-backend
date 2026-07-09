@@ -1,9 +1,8 @@
 import type { user } from "./user.js";
 
 function normalizeKey(value: string) {
-  return value.trim().toLowerCase();
+  return JSON.stringify(value).trim().toLowerCase();
 }
-
 export class Manager {
   rooms: Map<string, user[]> = new Map();
   static instance: Manager;
@@ -30,6 +29,7 @@ export class Manager {
 
     users.push(joiningUser);
     this.rooms.set(roomid, users);
+    
     return true;
   }
 

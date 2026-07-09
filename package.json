@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc",
     "dev": "node dist/index.js",
     "start": "npm run build && npm run dev"
   },
@@ -13,11 +13,13 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.11.1",
     "typescript": "^5.9.3",
     "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.9.3",
     "@types/ws": "^8.18.1"
   }
 }
