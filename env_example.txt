@@ -1,0 +1,5 @@
+REDIS = redis url 
+JOINS  = SECRET
+MSG  = SECRET
+LEFT  = SECRET
+PORT = 3000
